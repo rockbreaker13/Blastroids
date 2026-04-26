@@ -5,21 +5,12 @@ from pathlib import Path
 import pygame
 from pygame import time, Vector2
 
-from . import config
-from .collisions import (
-    handle_asteroid_collisions,
-    handle_boss_collisions,
-    handle_player_collisions,
-)
-from .effects import Pop, Pow, ScreenEffect
-from .entities import Ship, Asteroid, Boss
-from .ui import Mmanim, Button, Bar, BossName
-
+from blastroids import config, collisions, effects, entities, ui
 
 def create_impact(pos, color=(255, 255, 255), count=5):
     for _ in range(count):
-        config.pows.add(Pow(pos.x, pos.y, 10, color))
-    config.pops.add(Pop(pos.x, pos.y, 20, color))
+        config.pows.add(effects.Pow(pos.x, pos.y, 10, color))
+    config.pops.add(effects.Pop(pos.x, pos.y, 20, color))
 
 
 def reset_game():
@@ -35,9 +26,9 @@ def reset_game():
     config.effects.empty()
     config.boss_group.empty()
     config.overlay_ui.empty()
-    config.ship.add(Ship())
-    config.ui_bars.add(Bar("hp"))
-    config.ui_bars.add(Bar("bomb cooldown"))
+    config.ship.add(entities.Ship())
+    config.ui_bars.add(ui.Bar("hp"))
+    config.ui_bars.add(ui.Bar("bomb cooldown"))
     return 30, 30, 0, True, 0.0, 0
 
 
@@ -79,9 +70,9 @@ def update_game_state(score, frames_passed, can_gen, ast_cd, cacd):
         and frames_passed % interval == 0
         and not config.boss_group.sprite
     ):
-        config.boss_group.add(Boss())
-        config.overlay_ui.add(BossName())
-        config.effects.add(ScreenEffect((255, 255, 255), 200, -10))
+        config.boss_group.add(entities.Boss())
+        config.overlay_ui.add(ui.BossName())
+        config.effects.add(effects.ScreenEffect((255, 255, 255), 200, -10))
 
     if can_gen and not config.boss_group.sprite:
         cacd -= 1
@@ -92,7 +83,7 @@ def update_game_state(score, frames_passed, can_gen, ast_cd, cacd):
             else:
                 num_asteroids = random.randint(1, 1)
             for _ in range(num_asteroids):
-                config.asteroids.add(Asteroid())
+                config.asteroids.add(entities.Asteroid())
 
     config.ship.update()
     config.asteroids.update()
@@ -110,9 +101,9 @@ def update_game_state(score, frames_passed, can_gen, ast_cd, cacd):
 
 
 def handle_collisions(score):
-    handle_player_collisions()
-    score = handle_asteroid_collisions(score)
-    score = handle_boss_collisions(score)
+    collisions.handle_player_collisions()
+    score = collisions.handle_asteroid_collisions(score)
+    score = collisions.handle_boss_collisions(score)
     return score
 
 
@@ -183,11 +174,21 @@ def render_screen(score, bg_off):
     pygame.display.flip()
 
 
+def handle_game_over():
+    if not config.ship.sprite:
+        if not any(b.kind == "Play Again" for b in config.buttons):
+            config.buttons.add(ui.Button(config.W // 2, config.H // 2, "Play Again"))
+        for b in config.buttons:
+            if b.kind == "Play Again" and b.clicked:
+                return reset_game()
+    return None
+
+
 def play():
     pygame.mixer.music.play(-1)
     ast_cd, cacd, frames_passed, can_gen, bg_off, score = reset_game()
     running = True
-    config.effects.add(ScreenEffect((0, 0, 0), 255, -5))
+    config.effects.add(effects.ScreenEffect((0, 0, 0), 255, -5))
 
     while running:
         running = handle_input()
@@ -197,22 +198,17 @@ def play():
         score = handle_collisions(score)
         render_screen(score, bg_off)
 
-        if not config.ship.sprite:
-            if not any(b.kind == "Play Again" for b in config.buttons):
-                config.buttons.add(Button(config.W // 2, config.H // 2, "Play Again"))
-            for b in config.buttons:
-                if b.kind == "Play Again" and b.clicked:
-                    ast_cd, cacd, frames_passed, can_gen, bg_off, score = reset_game()
+        game_over_state = handle_game_over()
+        if game_over_state:
+            ast_cd, cacd, frames_passed, can_gen, bg_off, score = game_over_state
 
         config.clock.tick(60)
-        if not config.boss_group.sprite:
-            frames_passed += 1
 
 
 def main_menu():
-    mmanim = Mmanim(config.W, config.H)
+    mmanim = ui.Mmanim(config.W, config.H)
     config.buttons.empty()
-    config.buttons.add(Button(config.W // 2, 650, "Play"))
+    config.buttons.add(ui.Button(config.W // 2, 650, "Play"))
     running = True
     while running:
         for event in pygame.event.get():

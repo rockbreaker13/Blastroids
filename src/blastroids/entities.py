@@ -4,9 +4,7 @@ import random
 import pygame
 from pygame import sprite, Vector2
 
-from . import config
-from .effects import Pop, Pow
-
+from blastroids import config, effects
 
 class Ship(sprite.Sprite):
     def __init__(self):
@@ -77,7 +75,7 @@ class Ship(sprite.Sprite):
         if self.is_rainbow:
             for i in range(2):
                 config.pows.add(
-                    Pow(
+                    effects.Pow(
                         self.pos.x,
                         self.pos.y,
                         1,
@@ -88,7 +86,7 @@ class Ship(sprite.Sprite):
         else:
             for i in range(2):
                 config.pows.add(
-                    Pow(self.pos.x, self.pos.y, 1, self.color, Vector2(0, 10))
+                    effects.Pow(self.pos.x, self.pos.y, 1, self.color, Vector2(0, 10))
                 )
 
         if self.rect.centerx < 0 or self.rect.centerx > config.W:
@@ -100,7 +98,7 @@ class Ship(sprite.Sprite):
 
         if self.hp <= 0:
             self.kill()
-            config.pops.add(Pop(self.pos.x, self.pos.y, 64, (255, 255, 255)))
+            config.pops.add(effects.Pop(self.pos.x, self.pos.y, 64, (255, 255, 255)))
 
     def draw(self, screen):
         if self.angular_lasers:

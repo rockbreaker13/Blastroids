@@ -2,7 +2,7 @@ import random
 import pygame
 from pygame import sprite, Vector2
 
-from . import config
+from blastroids import config
 
 
 class Pop(sprite.Sprite):

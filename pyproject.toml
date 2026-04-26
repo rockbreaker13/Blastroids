@@ -1,26 +1,19 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[project]
+[tool.poetry]
 name = "blastroids"
-version = "0.0.1"
-authors = [
-  { name="RockBreaker" },
-]
-description = "A simple asteroids-style game"
-readme = "README.md"
-requires-python = ">=3.10"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-]
-dependencies = [
-    "pygame>=2.1.2",
-    "radon"
-]
+version = "0.1.0"
+description = ""
+authors = ["RockBreaker"]
+packages = [{include = "blastroids", from = "src"}]
 
-[project.urls]
-"Homepage" = "https://github.com/pypa/sampleproject"
-"Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
+[tool.poetry.dependencies]
+python = ">=3.10"
+pygame = "^2.1.2"
+radon = "^6.0.1"
+ruff = "^0.15.12"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+blastroids = "blastroids.main:main"
