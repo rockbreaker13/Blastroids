@@ -152,7 +152,10 @@ class Bar(sprite.Sprite):
         super().__init__()
         self.max_width = 256
         self.kind = kind
-        self.pos = Vector2(148, config.H - 40 if kind == "hp" else config.H - 70)
+        if kind == "hp":
+            self.pos = Vector2(148, config.H - 40)
+        else:
+            self.pos = Vector2(148, config.H - 70)
         self.rect = pygame.Rect(0, 0, self.max_width, 20)
         self.rect.center = self.pos
 
@@ -160,11 +163,12 @@ class Bar(sprite.Sprite):
         if not config.ship.sprite:
             return
         pygame.draw.rect(screen, (50, 50, 50), self.rect, border_radius=10)
-        ratio = (
-            config.ship.sprite.hp / config.ship.sprite.max_hp
-            if self.kind == "hp"
-            else 1 - (config.ship.sprite.bomb_cooldown / config.ship.sprite.max_bomb_cooldown)
-        )
+        if self.kind == "hp":
+            ratio = config.ship.sprite.hp / config.ship.sprite.max_hp
+        else:
+            ratio = 1 - (
+                config.ship.sprite.bomb_cooldown / config.ship.sprite.max_bomb_cooldown
+            )
         fr = pygame.Rect(
             self.rect.left,
             self.rect.top,
@@ -183,37 +187,72 @@ class Upgrade(sprite.Sprite):
         self.pos = Vector2(x, y)
         self.rect = self.image.get_rect(center=self.pos)
         self.type = None
+
+        upgrade_options = [
+            "shoot speed",
+            "laser velocity",
+            "ship repair",
+            "exploding lasers",
+            "multishot",
+            "more bomb shrapnel",
+        ]
         if config.ship.sprite and config.ship.sprite.bosses_killed >= config.lv_req:
-            self.type = random.choice(
-                [
-                    "shoot speed",
-                    "laser velocity",
-                    "ship repair",
-                    "exploding lasers",
-                    "multishot",
-                    "more bomb shrapnel",
-                ]
-            )
-        else:
-            self.type = random.choice(
-                [
-                    "shoot speed",
-                    "laser velocity",
-                    "ship repair",
-                    "exploding lasers",
-                    "multishot",
-                    "more bomb shrapnel",
-                    "sin lasers",
-                    "angular lasers",
-                    "ray bombs",
-                ]
-            )
+            upgrade_options.extend(["sin lasers", "angular lasers", "ray bombs"])
+
+        self.type = random.choice(upgrade_options)
         self.font = pygame.font.SysFont("corbel", 32, bold=False)
         self.text = self.font.render(self.type, True, (0, 0, 0))
         self.wait = 20
         self.current_size = 200
         self.target_size = 200
         self.lerp_speed = 0.2
+        self.upgrade_actions = {
+            "shoot speed": self._upgrade_shoot_speed,
+            "laser velocity": self._upgrade_laser_velocity,
+            "ship repair": self._upgrade_ship_repair,
+            "exploding lasers": self._upgrade_exploding_lasers,
+            "multishot": self._upgrade_multishot,
+            "more bomb shrapnel": self._upgrade_more_bomb_shrapnel,
+            "sin lasers": self._upgrade_sin_lasers,
+            "angular lasers": self._upgrade_angular_lasers,
+            "ray bombs": self._upgrade_ray_bombs,
+        }
+
+    def _upgrade_shoot_speed(self):
+        if config.ship.sprite.shoot_delay >= 12:
+            config.ship.sprite.shoot_delay -= 2
+
+    def _upgrade_laser_velocity(self):
+        if config.ship.sprite.laser_vel.y >= -26:
+            config.ship.sprite.laser_vel *= 1.5
+
+    def _upgrade_ship_repair(self):
+        config.ship.sprite.hp = config.ship.sprite.max_hp
+
+    def _upgrade_exploding_lasers(self):
+        if config.ship.sprite.laser_dmg < 2:
+            config.ship.sprite.laser_dmg += 1
+            config.ship.sprite.laser_exp += 1
+
+    def _upgrade_multishot(self):
+        if config.ship.sprite.multishot < 2:
+            config.ship.sprite.multishot += 1
+
+    def _upgrade_more_bomb_shrapnel(self):
+        if config.ship.sprite.shrapnel < 48:
+            config.ship.sprite.shrapnel += 4
+
+    def _upgrade_sin_lasers(self):
+        if config.ship.sprite.bosses_killed >= config.lv_req:
+            config.ship.sprite.sin_lasers = True
+
+    def _upgrade_angular_lasers(self):
+        if config.ship.sprite.bosses_killed >= config.lv_req:
+            config.ship.sprite.angular_lasers = True
+
+    def _upgrade_ray_bombs(self):
+        if config.ship.sprite.bosses_killed >= config.lv_req:
+            config.ship.sprite.ray_bomb = True
 
     def update(self):
         if self.wait > 0:
@@ -224,35 +263,8 @@ class Upgrade(sprite.Sprite):
         ) * self.lerp_speed
         if self.rect.collidepoint(mouse_pos):
             self.target_size = 500
-            if pygame.mouse.get_pressed()[0] and self.wait <= 0:
-                if config.ship.sprite:
-                    if self.type == "shoot speed":
-                        if config.ship.sprite.shoot_delay >= 12:
-                            config.ship.sprite.shoot_delay -= 2
-                    elif self.type == "laser velocity":
-                        if config.ship.sprite.laser_vel.y >= -26:
-                            config.ship.sprite.laser_vel *= 1.5
-                    elif self.type == "ship repair":
-                        config.ship.sprite.hp = config.ship.sprite.max_hp
-                    elif self.type == "exploding lasers":
-                        if config.ship.sprite.laser_dmg < 2:
-                            config.ship.sprite.laser_dmg += 1
-                            config.ship.sprite.laser_exp += 1
-                    elif self.type == "multishot":
-                        if config.ship.sprite.multishot < 2:
-                            config.ship.sprite.multishot += 1
-                    elif self.type == "more bomb shrapnel":
-                        if config.ship.sprite.shrapnel < 48:
-                            config.ship.sprite.shrapnel += 4
-                    elif self.type == "sin lasers":
-                        if config.ship.sprite.bosses_killed >= config.lv_req:
-                            config.ship.sprite.sin_lasers = True
-                    elif self.type == "angular lasers":
-                        if config.ship.sprite.bosses_killed >= config.lv_req:
-                            config.ship.sprite.angular_lasers = True
-                    elif self.type == "ray bombs":
-                        if config.ship.sprite.bosses_killed >= config.lv_req:
-                            config.ship.sprite.ray_bomb = True
+            if pygame.mouse.get_pressed()[0] and self.wait <= 0 and config.ship.sprite:
+                self.upgrade_actions.get(self.type, lambda: None)()
                 for i in range(25):
                     config.pows.add(Pow(self.pos.x, self.pos.y, 20, (255, 255, 255)))
                 self.kill()

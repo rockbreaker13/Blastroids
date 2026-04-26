@@ -56,15 +56,15 @@ class Ship(sprite.Sprite):
         if mouse[0] and self.cooldown <= 0:
             for i in range(-self.multishot, self.multishot + 1):
                 config.lasers.add(
-                    Laser(self.pos.copy(), "main", Vector2(i * 2, self.laser_vel.y))
+                    MainLaser(self.pos.copy(), Vector2(i * 2, self.laser_vel.y))
                 )
             if self.sin_lasers:
-                config.lasers.add(Laser(self.pos.copy(), "sin 1", Vector2(0, (-i - 5) * 2)))
-                config.lasers.add(Laser(self.pos.copy(), "sin 2", Vector2(0, (-i - 5) * 2)))
+                config.lasers.add(SinLaser(self.pos.copy(), Vector2(0, (-i - 5) * 2), "sin 1"))
+                config.lasers.add(SinLaser(self.pos.copy(), Vector2(0, (-i - 5) * 2), "sin 2"))
             self.cooldown = self.shoot_delay
             config.shoot_sound.play()
         if mouse[2] and self.bomb_cooldown <= 0:
-            config.lasers.add(Laser(self.pos.copy(), "bomb", Vector2(0, -15)))
+            config.lasers.add(Bomb(self.pos.copy(), Vector2(0, -15)))
             self.bomb_cooldown = self.max_bomb_cooldown
 
         self.pos += self.vel
@@ -151,7 +151,9 @@ class Asteroid(sprite.Sprite):
                     640 // (2 ** config.ship.sprite.bosses_killed + 1)
                 )
             else:
-                self.hp = (size * size) // (1280 // (config.ship.sprite.bosses_killed + 1))
+                self.hp = (size * size) // (
+                    1280 // (config.ship.sprite.bosses_killed + 1)
+                )
 
     def update(self):
         self.pos.y += self.speed
@@ -164,133 +166,139 @@ class Asteroid(sprite.Sprite):
 
 
 class Laser(sprite.Sprite):
-    SHRAPNEL_RADIUS = 8
-    SHRAPNEL_SPEED = 8
-    MAIN_LASER_WIDTH = 12
-    MAIN_LASER_HEIGHT = 30
-
-    def __init__(self, pos, kind="main", vel=Vector2(0, -10)):
+    def __init__(self, pos, vel):
         super().__init__()
-        self.kind = kind
         self.pos = Vector2(pos)
         self.vel = vel
         self.timer = 0
         self.color = (255, 255, 255)
 
-        if self.kind == "shrapnel":
-            size = self.SHRAPNEL_RADIUS * 2
-            self.image = pygame.Surface((size, size), pygame.SRCALPHA)
-            self.rect = self.image.get_rect(center=self.pos)
-        elif self.kind == "bomb":
+
+class MainLaser(Laser):
+    def __init__(self, pos, vel):
+        super().__init__(pos, vel)
+        if config.ship.sprite and config.ship.sprite.angular_lasers:
             self.image = pygame.Surface((40, 40), pygame.SRCALPHA)
-            self.rect = self.image.get_rect(center=self.pos)
-        elif self.kind in ["sin 1", "sin 2"]:
-            self.image = pygame.Surface((30, 30), pygame.SRCALPHA)
-            self.color = (0, 255, 0)
-            self.rect = self.image.get_rect(center=self.pos)
-        elif self.kind == "ray":
-            self.image = pygame.Surface((1, 1), pygame.SRCALPHA)
-            self.color = (0, 0, 255)
-            self.rect = self.image.get_rect(center=self.pos)
+            self.color = (255, 0, 0)
         else:
-            if config.ship.sprite and config.ship.sprite.angular_lasers:
-                self.image = pygame.Surface((40, 40), pygame.SRCALPHA)
-                self.color = (255, 0, 0)
-            else:
-                self.image = pygame.Surface(
-                    (self.MAIN_LASER_WIDTH, self.MAIN_LASER_HEIGHT), pygame.SRCALPHA
-                )
-            self.rect = self.image.get_rect(center=self.pos)
+            self.image = pygame.Surface((12, 30), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(center=self.pos)
 
     def update(self):
-        if self.kind == "main":
-            self.pos += self.vel
-            if self.pos.y < -50 or self.pos.y > config.H + 50:
-                self.kill()
-        elif self.kind == "bomb":
-            self.pos += self.vel
-            self.vel *= 0.96
-            if self.vel.length() < 0.5:
-                self.explode()
-        elif self.kind == "shrapnel":
-            self.pos += self.vel
-            if not config.screen.get_rect().collidepoint(self.pos):
-                self.kill()
-        elif self.kind in ["sin 1", "sin 2"]:
-            self.timer += 0.25
-            side = 1 if self.kind == "sin 1" else -1
-            self.vel.x = math.sin(self.timer) * 25 * side
-            self.pos += self.vel
-            if not config.screen.get_rect().collidepoint(self.pos):
-                self.kill()
-        elif self.kind == "ray":
-            self.timer += 1
-            if self.timer >= 30:
-                self.kill()
+        self.pos += self.vel
+        if self.pos.y < -50 or self.pos.y > config.H + 50:
+            self.kill()
+        self.rect.center = self.pos
 
+    def draw(self, screen):
+        if config.ship.sprite and config.ship.sprite.angular_lasers:
+            pygame.draw.polygon(
+                screen,
+                self.color,
+                [
+                    self.pos + Vector2(0, -25),
+                    self.pos + Vector2(12, 12),
+                    self.pos,
+                    self.pos + Vector2(-12, 12),
+                ],
+            )
+        else:
+            pygame.draw.rect(screen, self.color, self.rect, border_radius=5)
+
+
+class Bomb(Laser):
+    def __init__(self, pos, vel):
+        super().__init__(pos, vel)
+        self.image = pygame.Surface((40, 40), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(center=self.pos)
+
+    def update(self):
+        self.pos += self.vel
+        self.vel *= 0.96
+        if self.vel.length() < 0.5:
+            self.explode()
         self.rect.center = self.pos
 
     def explode(self):
         config.screen_shake = 15
-
         if config.ship.sprite:
             count = config.ship.sprite.shrapnel
-
-        if self.kind == "bomb" and config.ship.sprite and config.ship.sprite.ray_bomb:
-            for i in range(count):
-                angle = (i / count) * 360
-                new_laser = Laser(
-                    self.pos,
-                    "ray",
-                    Vector2(
+            if config.ship.sprite.ray_bomb:
+                for i in range(count):
+                    angle = (i / count) * 360
+                    vel = Vector2(
                         math.cos(math.radians(angle)), math.sin(math.radians(angle))
-                    )
-                    * self.SHRAPNEL_SPEED,
-                )
-                config.lasers.add(new_laser)
-
-        elif self.kind == "bomb" and not (config.ship.sprite and config.ship.sprite.ray_bomb):
-            for i in range(count):
-                angle = (i / count) * (math.pi * 2)
-                new_laser = Laser(
-                    self.pos,
-                    "shrapnel",
-                    Vector2(math.cos(angle), math.sin(angle)) * self.SHRAPNEL_SPEED,
-                )
-                config.lasers.add(new_laser)
-
+                    ) * 8
+                    config.lasers.add(Ray(self.pos, vel))
+            else:
+                for i in range(count):
+                    angle = (i / count) * (math.pi * 2)
+                    vel = Vector2(math.cos(angle), math.sin(angle)) * 8
+                    config.lasers.add(Shrapnel(self.pos, vel))
         self.kill()
 
     def draw(self, screen):
-        if self.kind == "main":
-            if config.ship.sprite and config.ship.sprite.angular_lasers:
-                pygame.draw.polygon(
-                    screen,
-                    self.color,
-                    [
-                        self.pos + Vector2(0, -25),
-                        self.pos + Vector2(12, 12),
-                        self.pos,
-                        self.pos + Vector2(-12, 12),
-                    ],
-                )
-            else:
-                pygame.draw.rect(screen, self.color, self.rect, border_radius=5)
+        pygame.draw.rect(screen, self.color, self.rect, border_radius=10)
 
-        elif self.kind == "shrapnel":
-            pygame.draw.circle(screen, self.color, self.pos, self.SHRAPNEL_RADIUS)
 
-        elif self.kind == "ray":
-            width = max(1, 30 - self.timer)
-            pygame.draw.line(
-                screen, self.color, self.pos, self.pos + self.vel * 1000, width
-            )
+class Shrapnel(Laser):
+    def __init__(self, pos, vel):
+        super().__init__(pos, vel)
+        self.image = pygame.Surface((16, 16), pygame.SRCALPHA)
+        self.rect = self.image.get_rect(center=self.pos)
 
-        elif self.kind in ["sin 1", "sin 2"]:
-            pygame.draw.circle(screen, self.color, self.pos, 10)
+    def update(self):
+        self.pos += self.vel
+        if not config.screen.get_rect().collidepoint(self.pos):
+            self.kill()
+        self.rect.center = self.pos
 
-        elif self.kind == "bomb":
-            pygame.draw.rect(screen, self.color, self.rect, border_radius=10)
+    def draw(self, screen):
+        pygame.draw.circle(screen, self.color, self.pos, 8)
+
+
+class SinLaser(Laser):
+    def __init__(self, pos, vel, kind):
+        super().__init__(pos, vel)
+        self.image = pygame.Surface((30, 30), pygame.SRCALPHA)
+        self.color = (0, 255, 0)
+        self.rect = self.image.get_rect(center=self.pos)
+        self.kind = kind
+
+    def update(self):
+        self.timer += 0.25
+        if self.kind == "sin 1":
+            side = 1
+        else:
+            side = -1
+        self.vel.x = math.sin(self.timer) * 25 * side
+        self.pos += self.vel
+        if not config.screen.get_rect().collidepoint(self.pos):
+            self.kill()
+        self.rect.center = self.pos
+
+    def draw(self, screen):
+        pygame.draw.circle(screen, self.color, self.pos, 10)
+
+
+class Ray(Laser):
+    def __init__(self, pos, vel):
+        super().__init__(pos, vel)
+        self.image = pygame.Surface((1, 1), pygame.SRCALPHA)
+        self.color = (0, 0, 255)
+        self.rect = self.image.get_rect(center=self.pos)
+
+    def update(self):
+        self.timer += 1
+        if self.timer >= 30:
+            self.kill()
+        self.rect.center = self.pos
+
+    def draw(self, screen):
+        width = max(1, 30 - self.timer)
+        pygame.draw.line(
+            screen, self.color, self.pos, self.pos + self.vel * 1000, width
+        )
 
 
 class EnemyLaser(sprite.Sprite):
