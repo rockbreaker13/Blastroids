@@ -28,3 +28,6 @@ songs = {
 }
 zone = 1
 grid_thickness = 3
+
+boss_wait_min = 600
+boss_wait = 3600

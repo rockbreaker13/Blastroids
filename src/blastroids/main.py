@@ -68,7 +68,10 @@ def update_game_state(score, frames_passed, can_gen, ast_cd, cacd):
     bg_off = (frames_passed + 1) % (config.H // 8)
     # NOTE: This is where the boss spawn logic is, and also where asteroids are generated!
     if config.ship.sprite:
-        interval = max(600, 3600 - (config.ship.sprite.bosses_killed * 200))
+        interval = max(
+            config.boss_wait_min,
+            config.boss_wait - (config.ship.sprite.bosses_killed * 200),
+        )
     else:
         interval = 3600
 
@@ -82,7 +85,7 @@ def update_game_state(score, frames_passed, can_gen, ast_cd, cacd):
         elif config.zone == 2:
             config.boss_group.add(entities.Boss2())
         config.overlay_ui.add(ui.BossName())
-        config.effects.add(effects.ScreenEffect((255, 255, 255), 200, -10))
+        config.effects.add(effects.ScreenEffect((`255, 255, 255), 200, -10))
 
     if can_gen and not config.boss_group.sprite:
         cacd -= 1
@@ -113,6 +116,7 @@ def update_game_state(score, frames_passed, can_gen, ast_cd, cacd):
         config.ship.sprite.sin_lasers = False
         config.ship.sprite.angular_lasers = False
         config.ship.sprite.ray_bomb = False
+        config.ship.sprite.is_rainbow = False
     config.ship.update()
     config.asteroids.update()
     config.lasers.update()

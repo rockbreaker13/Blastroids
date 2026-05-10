@@ -572,9 +572,9 @@ class Boss2(sprite.Sprite):
         self.max_hp = 300 * (config.ship.sprite.bosses_killed + 1)
         self.hp = self.max_hp
         self.timer = 0
-        self.phase = 3
+        self.phase = 1
         self.next_phase = 600
-        self.dm = 2 + (config.ship.sprite.bosses_killed * 0.15)
+        self.dm = 1 + (config.ship.sprite.bosses_killed * 0.15)
 
     def update(self):
         self.next_phase -= 1
@@ -690,7 +690,7 @@ class Boss2(sprite.Sprite):
                 self.timer += 0.01
                 if self.timer % 0.20 < 0.01:
                     for i in range(amount := 10):
-                        direction = Vector2(10, 10).rotate(i * (360 / amount))
+                        direction = Vector2(7, 7).rotate(i * (360 / amount))
                         # By using the actual self.timer value here,
                         # each wave will have a different starting rotation.
                         config.enemy_lasers.add(
@@ -710,7 +710,7 @@ class Boss2(sprite.Sprite):
                 ]:
                     for i in range(5):
                         config.enemy_lasers.add(
-                            EnemyLaser(self.pos.copy(), Vector2(i - 2, 10), "aim")
+                            EnemyLaser(self.pos.copy(), Vector2((i - 2) * 5, 10), "aim")
                         )
                 if self.timer >= 1:
                     self.timer = 0
