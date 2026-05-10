@@ -1,6 +1,5 @@
 from pygame import sprite
 
-
 # ---- Game Config ----
 W, H = 0, 0
 screen = None
