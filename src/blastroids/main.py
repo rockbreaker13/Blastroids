@@ -85,7 +85,7 @@ def update_game_state(score, frames_passed, can_gen, ast_cd, cacd):
         elif config.zone == 2:
             config.boss_group.add(entities.Boss2())
         config.overlay_ui.add(ui.BossName())
-        config.effects.add(effects.ScreenEffect((`255, 255, 255), 200, -10))
+        config.effects.add(effects.ScreenEffect((255, 255, 255), 200, -10))
 
     if can_gen and not config.boss_group.sprite:
         cacd -= 1
