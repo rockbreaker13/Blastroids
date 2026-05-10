@@ -1,8 +1,9 @@
-import random
+import random, math
 import pygame
 from pygame import sprite, Vector2
 
 from blastroids import config, effects, upgrades
+
 
 class Mmanim:
     def __init__(self, W, H):
@@ -130,7 +131,7 @@ class Button(sprite.Sprite):
         mouse_pos = pygame.mouse.get_pos()
         mouse_click = pygame.mouse.get_pressed()
         self.current_size += (self.target_size - self.current_size) * 0.2
-        self.rect.size = (self.current_size, self.current_size)
+        self.rect.size = (self.current_size * 2.5, self.current_size)
         if self.rect.collidepoint(mouse_pos):
             self.target_size = 150
             if mouse_click[0]:
@@ -156,6 +157,7 @@ class Bar(sprite.Sprite):
             self.pos = Vector2(148, config.H - 70)
         self.rect = pygame.Rect(0, 0, self.max_width, 20)
         self.rect.center = self.pos
+        self.font = pygame.font.SysFont("corbel", 18, bold=False)
 
     def draw(self, screen):
         if not config.ship.sprite:
@@ -173,8 +175,22 @@ class Bar(sprite.Sprite):
             int(self.max_width * max(0, min(1, ratio))),
             20,
         )
+        # make an image for text that shows the points of tha bar, eg.(hp/max_hp)
+        if self.kind == "hp":
+            text = self.font.render(
+                f"{config.ship.sprite.hp}/{config.ship.sprite.max_hp}",
+                True,
+                (0, 0, 0),
+            )
+        else:
+            text = self.font.render(
+                f"{int(100-config.ship.sprite.bomb_cooldown)}/{int(config.ship.sprite.max_bomb_cooldown)}",
+                True,
+                (0, 0, 0),
+            )
         pygame.draw.rect(screen, (255, 255, 255), fr, border_radius=10)
         pygame.draw.rect(screen, (255, 255, 255), self.rect, 2, 10)
+        screen.blit(text, text.get_rect(center=self.rect.center))
 
 
 class Upgrade(sprite.Sprite):
@@ -202,6 +218,12 @@ class Upgrade(sprite.Sprite):
                     upgrades.RayBombsUpgrade(),
                 ]
             )
+        if config.zone >= 2:
+            upgrade_options.extend(
+                [
+                    upgrades.BetterMultishotUpgrade(),
+                ]
+            )
 
         self.upgrade_effect = random.choice(upgrade_options)
         self.font = pygame.font.SysFont("corbel", 32, bold=False)
@@ -217,6 +239,7 @@ class Upgrade(sprite.Sprite):
             self.target_size = 500
             if pygame.mouse.get_pressed()[0] and self.wait <= 0 and config.ship.sprite:
                 self.upgrade_effect.apply(config.ship.sprite)
+                config.screen_shake = 10
                 for i in range(25):
                     config.pows.add(
                         effects.Pow(self.pos.x, self.pos.y, 20, (255, 255, 255))
@@ -273,6 +296,33 @@ class BossName(sprite.Sprite):
             self.alpha -= 5
             if self.alpha <= 0:
                 self.kill()
+
+    def draw(self, screen):
+        self.image.set_alpha(self.alpha)
+        screen.blit(self.image, self.rect)
+
+
+class ZoneAnnouncement(sprite.Sprite):
+    def __init__(self, zone_number):
+        super().__init__()
+        self.life = 0
+        self.alpha = 255
+        self.image = pygame.font.SysFont("corbel", 48, bold=True).render(
+            f"ZONE {zone_number}", True, (255, 255, 255)
+        )
+        self.rect = self.image.get_rect(center=(config.W // 2, 300))
+
+    def update(self):
+        self.life += 1
+        progress = (self.life * 0.01) % 2.4 - 1.2
+
+        # We use negative tan because we want to move from bottom (positive Y) to top (negative Y)
+        offset = -math.tan(progress) * (config.H // 3)
+
+        self.rect.center = (config.W // 2, (config.H // 2) + offset)
+
+        if self.rect.centery < -self.rect.height:
+            self.kill()
 
     def draw(self, screen):
         self.image.set_alpha(self.alpha)

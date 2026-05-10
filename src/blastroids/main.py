@@ -5,7 +5,8 @@ from pathlib import Path
 import pygame
 from pygame import time, Vector2
 
-from blastroids import config, collisions, effects, entities, ui
+from blastroids import assets, config, collisions, effects, entities, ui
+
 
 def create_impact(pos, color=(255, 255, 255), count=5):
     for _ in range(count):
@@ -34,18 +35,23 @@ def reset_game():
 
 def draw_group(group, shake_offset):
     for s in group:
+        # 1. Apply the shake to BOTH pos and rect if the sprite has them
+        if hasattr(s, "pos"):
+            s.pos += shake_offset
+        if hasattr(s, "rect"):
+            s.rect.center += shake_offset
+
+        # 2. Draw the sprite while it's shifted
         if hasattr(s, "draw"):
-            if hasattr(s, "rect"):
-                s.rect.center += shake_offset
-            elif hasattr(s, "pos"):
-                s.pos += shake_offset
             s.draw(config.screen)
         else:
-            if hasattr(s, "rect"):
-                s.rect.center += shake_offset
-            elif hasattr(s, "pos"):
-                s.pos += shake_offset
             config.screen.blit(s.image, s.rect)
+
+        # 3. IMMEDIATELY undo the shake offset so the sprites don't drift away permanently!
+        if hasattr(s, "pos"):
+            s.pos -= shake_offset
+        if hasattr(s, "rect"):
+            s.rect.center -= shake_offset
 
 
 def handle_input():
@@ -60,6 +66,7 @@ def handle_input():
 
 def update_game_state(score, frames_passed, can_gen, ast_cd, cacd):
     bg_off = (frames_passed + 1) % (config.H // 8)
+    # NOTE: This is where the boss spawn logic is, and also where asteroids are generated!
     if config.ship.sprite:
         interval = max(600, 3600 - (config.ship.sprite.bosses_killed * 200))
     else:
@@ -70,7 +77,10 @@ def update_game_state(score, frames_passed, can_gen, ast_cd, cacd):
         and frames_passed % interval == 0
         and not config.boss_group.sprite
     ):
-        config.boss_group.add(entities.Boss())
+        if config.zone == 1:
+            config.boss_group.add(entities.Boss1())
+        elif config.zone == 2:
+            config.boss_group.add(entities.Boss2())
         config.overlay_ui.add(ui.BossName())
         config.effects.add(effects.ScreenEffect((255, 255, 255), 200, -10))
 
@@ -85,6 +95,24 @@ def update_game_state(score, frames_passed, can_gen, ast_cd, cacd):
             for _ in range(num_asteroids):
                 config.asteroids.add(entities.Asteroid())
 
+    if config.ship.sprite and config.ship.sprite.bosses_killed == 10:
+        # change the zone by one and show it on the screen
+        config.ship.sprite.bosses_killed = 0
+        config.zone += 1
+        config.effects.add(effects.ScreenEffect((255, 255, 255), 255, -5))
+        config.overlay_ui.add(ui.ZoneAnnouncement(config.zone))
+        # remove all ship upgrades INDIVIDUALLY
+        config.ship.sprite.shoot_delay = 16
+        config.ship.sprite.max_bomb_cooldown = 100
+        config.ship.sprite.bomb_cooldown = config.ship.sprite.max_bomb_cooldown
+        config.ship.sprite.laser_vel = Vector2(0, -10)
+        config.ship.sprite.laser_dmg = 1
+        config.ship.sprite.multishot = 0
+        config.ship.sprite.shrapnel = 12
+        config.ship.sprite.laser_exp = 1
+        config.ship.sprite.sin_lasers = False
+        config.ship.sprite.angular_lasers = False
+        config.ship.sprite.ray_bomb = False
     config.ship.update()
     config.asteroids.update()
     config.lasers.update()
@@ -118,26 +146,42 @@ def render_screen(score, bg_off):
         shake_offset = Vector2(0, 0)
 
     config.screen.fill((0, 0, 0))
-    for i in range(11):
-        pygame.draw.line(
-            config.screen,
-            (40, 40, 40),
-            (config.W // 10 * i + shake_offset.x, 0),
-            (config.W // 10 * i + shake_offset.x, config.H),
-            1,
-        )
-    for i in range(-1, 10):
-        y_pos = (i * (config.H // 8)) + bg_off + shake_offset.y
-        pygame.draw.line(config.screen, (40, 40, 40), (0, y_pos), (config.W, y_pos), 1)
-
-    draw_group(config.pops, shake_offset)
-    draw_group(config.pows, shake_offset)
-    draw_group(config.asteroids, shake_offset)
-    draw_group(config.lasers, shake_offset)
-    draw_group(config.enemy_lasers, shake_offset)
-    draw_group(config.ship, shake_offset)
-    draw_group(config.upgs, shake_offset)
-    draw_group(config.boss_group, shake_offset)
+    if config.zone == 1:
+        for i in range(11):
+            pygame.draw.line(
+                config.screen,
+                (40, 40, 40),
+                (config.W // 10 * i + shake_offset.x, 0),
+                (config.W // 10 * i + shake_offset.x, config.H),
+                config.grid_thickness,
+            )
+        for i in range(-1, 10):
+            y_pos = (i * (config.H // 8)) + bg_off + shake_offset.y
+            pygame.draw.line(
+                config.screen,
+                (40, 40, 40),
+                (0, y_pos),
+                (config.W, y_pos),
+                config.grid_thickness,
+            )
+    elif config.zone == 2:
+        for i in range(11):
+            pygame.draw.line(
+                config.screen,
+                (40, 40, 0),
+                (config.W // 10 * i + shake_offset.x, 0),
+                (config.W // 10 * i + shake_offset.x, config.H),
+                config.grid_thickness,
+            )
+        for i in range(-1, 10):
+            y_pos = (i * (config.H // 8)) + bg_off + shake_offset.y
+            pygame.draw.line(
+                config.screen,
+                (40, 40, 0),
+                (0, y_pos),
+                (config.W, y_pos),
+                config.grid_thickness,
+            )
 
     for b in config.buttons:
         b.draw(config.screen)
@@ -148,6 +192,14 @@ def render_screen(score, bg_off):
     for effect in config.effects:
         effect.draw(config.screen)
 
+    draw_group(config.pops, shake_offset)
+    draw_group(config.pows, shake_offset)
+    draw_group(config.asteroids, shake_offset)
+    draw_group(config.lasers, shake_offset)
+    draw_group(config.enemy_lasers, shake_offset)
+    draw_group(config.ship, shake_offset)
+    draw_group(config.upgs, shake_offset)
+    draw_group(config.boss_group, shake_offset)
     if pygame.mouse.get_focused() and config.screen.get_rect().collidepoint(
         pygame.mouse.get_pos()
     ):
@@ -170,6 +222,13 @@ def render_screen(score, bg_off):
         (255, 255, 255),
     )
     config.screen.blit(score_surf, (40, 80))
+    score_font = pygame.font.SysFont("corbel", 24, bold=False)
+    score_surf = score_font.render(
+        f"Zone: {config.zone}",
+        True,
+        (255, 255, 255),
+    )
+    config.screen.blit(score_surf, (40, 120))
 
     pygame.display.flip()
 
@@ -185,10 +244,12 @@ def handle_game_over():
 
 
 def play():
+    pygame.mixer.music.load(config.songs["zone1_music"])
     pygame.mixer.music.play(-1)
     ast_cd, cacd, frames_passed, can_gen, bg_off, score = reset_game()
     running = True
     config.effects.add(effects.ScreenEffect((0, 0, 0), 255, -5))
+    config.overlay_ui.add(ui.ZoneAnnouncement(config.zone))
 
     while running:
         running = handle_input()
@@ -206,6 +267,8 @@ def play():
 
 
 def main_menu():
+    pygame.mixer.music.load(config.songs["main_menu_music"])
+    pygame.mixer.music.play(-1)
     mmanim = ui.Mmanim(config.W, config.H)
     config.buttons.empty()
     config.buttons.add(ui.Button(config.W // 2, 650, "Play"))
@@ -230,12 +293,16 @@ def main_menu():
                 (40, 40, 40),
                 (config.W // 10 * i, 0),
                 (config.W // 10 * i, config.H),
-                1,
+                config.grid_thickness,
             )
         for i in range(-1, 10):
             y_pos = i * (config.H // 8)
             pygame.draw.line(
-                config.screen, (40, 40, 40), (0, y_pos), (config.W, y_pos), 1
+                config.screen,
+                (40, 40, 40),
+                (0, y_pos),
+                (config.W, y_pos),
+                config.grid_thickness,
             )
         mmanim.draw(config.screen)
         for b in config.buttons:
@@ -256,7 +323,7 @@ def main_menu():
 def main():
     pygame.init()
     pygame.mixer.init()
-    pygame.display.set_caption("Blastroids 3")
+    pygame.display.set_caption("Blastroids")
     config.clock = time.Clock()
     pygame.mouse.set_visible(False)
 
@@ -264,7 +331,7 @@ def main():
 
     config.W, config.H = info.current_w, info.current_h
 
-    config.screen = pygame.display.set_mode((config.W, config.H), pygame.FULLSCREEN)
+    config.screen = pygame.display.set_mode((config.W, config.H))
     config.screen_shake = 0
 
     assets_dir = Path(__file__).parent / "assets"
@@ -277,16 +344,14 @@ def main():
             original_boss_img, (config.W - 100, 600)
         )
         config.shoot_sound = pygame.mixer.Sound(assets_dir / "laserShoot.wav")
-        config.shoot_sound.set_volume(1)
+        config.shoot_sound.set_volume(0.5)
         config.boom_sound = pygame.mixer.Sound(assets_dir / "explosion.wav")
-        config.boom_sound.set_volume(1)
+        config.boom_sound.set_volume(0.5)
         config.hit_sound = pygame.mixer.Sound(assets_dir / "hitHurt.wav")
-        config.hit_sound.set_volume(1)
-        pygame.mixer.music.load(assets_dir / "blastroids.mp3")
+        config.hit_sound.set_volume(0.5)
+
     except Exception as e:
         print(f"Asset load failed: {e}")
-
-    config.lv_req = 2
 
     while True:
         main_menu()

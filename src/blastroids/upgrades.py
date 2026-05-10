@@ -102,3 +102,14 @@ class RayBombsUpgrade(UpgradeEffect):
     def apply(self, ship):
         if ship.bosses_killed >= config.lv_req:
             ship.ray_bomb = True
+
+
+class BetterMultishotUpgrade(UpgradeEffect):
+    @property
+    def name(self):
+        return "multishot+"
+
+    def apply(self, ship):
+        if config.zone <= 1:
+            if ship.multishot < 3:
+                ship.multishot += 1

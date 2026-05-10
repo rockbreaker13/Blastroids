@@ -3,7 +3,7 @@ name = "blastroids"
 version = "0.1.0"
 description = ""
 authors = ["RockBreaker"]
-packages = [{include = "blastroids", from = "src"}]
+packages = [{ include = "blastroids", from = "src" }]
 
 [tool.poetry.dependencies]
 python = ">=3.10"

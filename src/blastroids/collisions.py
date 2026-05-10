@@ -2,6 +2,7 @@ import random
 from pygame import sprite
 from blastroids import config, effects, entities, ui
 
+
 def create_impact(pos, color=(255, 255, 255), count=5):
     for _ in range(count):
         config.pows.add(effects.Pow(pos.x, pos.y, 10, color))
@@ -60,18 +61,25 @@ def _handle_asteroid_laser_collision(ast, laser, score):
     if config.ship.sprite:
         if isinstance(laser, entities.SinLaser):
             damage = config.ship.sprite.laser_dmg * 2
-        elif isinstance(laser, entities.MainLaser) and config.ship.sprite.angular_lasers:
+        elif (
+            isinstance(laser, entities.MainLaser) and config.ship.sprite.angular_lasers
+        ):
             damage = config.ship.sprite.laser_dmg * 2.5
+        elif isinstance(laser, entities.Ray):
+            damage = config.ship.sprite.laser_dmg * 2
         else:
             damage = config.ship.sprite.laser_dmg
     else:
         if isinstance(laser, entities.SinLaser):
             damage = 1.5
+        elif isinstance(laser, entities.Ray):
+            damage = 2
         else:
             damage = 1
-    ast.hp -= damage
+    if ast:
+        ast.hp -= damage
 
-    ast.pos.y -= 1
+        ast.pos.y -= 1
 
     if config.ship.sprite and config.ship.sprite.laser_exp > 0:
         config.pops.add(
@@ -131,6 +139,7 @@ def _on_boss_destroyed(score):
         )
     if config.ship.sprite:
         config.ship.sprite.bosses_killed += 1
+        config.ship.sprite.hp = config.ship.sprite.max_hp
     config.boss_group.sprite.kill()
     return score
 

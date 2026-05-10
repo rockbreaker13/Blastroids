@@ -92,3 +92,22 @@ class ScreenEffect(sprite.Sprite):
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
+
+
+class Line(sprite.Sprite):
+    def __init__(self, start_pos, end_pos, color=(255, 255, 255), life=30):
+        super().__init__()
+        self.start_pos = Vector2(start_pos)
+        self.end_pos = Vector2(end_pos)
+        self.color = color
+        self.life = life
+
+    def update(self):
+        self.life -= 1
+        if self.life <= 0:
+            self.kill()
+
+    def draw(self, screen):
+        pygame.draw.circle(screen, self.color, self.start_pos, self.life)
+        pygame.draw.line(screen, self.color, self.start_pos, self.end_pos, self.life)
+        pygame.draw.circle(screen, self.color, self.end_pos, self.life)

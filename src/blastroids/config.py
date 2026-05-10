@@ -22,3 +22,9 @@ upgs = sprite.Group()
 effects = sprite.Group()
 boss_group = sprite.GroupSingle()
 overlay_ui = sprite.Group()
+songs = {
+    "main_menu_music": "assets/Chill the Axe.mp3",
+    "zone1_music": "assets/blastroids.mp3",
+}
+zone = 1
+grid_thickness = 3
